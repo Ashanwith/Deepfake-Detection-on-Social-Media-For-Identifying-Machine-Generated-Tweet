@@ -1,0 +1,69 @@
+Main.py:
+from DataHandler import DataHandler
+import streamlit as st
+from KerasModels import generateExpData
+from keras.models import load_model
+st.title(“Deepfake Detection on Social Media: for Identifying Machine-Generated
+Tweets”)
+bt = st.sidebar.radio(“Menu”, [“Home”, “Upload Data”, “Train”, “Prediction”])
+if bt == “Home”:
+st.header(“Project Overview:-“)
+st.write(“””about project“””)
+projectDir = “C:/major_project”
+csvTrainDataset = projectDir + “/data/splits/train.csv”
+csvValDataset = projectDir + “/data/splits/validation.csv”
+csvTestDataset = projectDir + “/data/splits/test.csv”
+charDir = projectDir + “/data/encoded/char”
+dh = DataHandler()
+dfTrain = dh.readCSVData(csvTrainDataset)
+dfVal = dh.readCSVData(csvValDataset)
+dfTest = dh.readCSVData(csvTestDataset)
+if bt == “Upload Data”:
+st.write(dfTrain.head())
+st.write(dfTrain.describe())
+dfTrainDataset = dfTrain[[“screen_name”, “text”, “account.type”]]
+dfValDataset = dfVal[[“screen_name”, “text”, “account.type”]]
+tokenizer = None
+train_features, tokenizer = generateExpData(dfTrainDataset, tokenizer=tokenizer)
+val_features, tokenizer = generateExpData(dfValDataset, tokenizer=tokenizer)
+X_train_all = dfTrainDataset
+X_val_all = dfValDataset
+dictLabels = {“human”: 0, “bot”: 1}
+dictLabelsReverse = {0: “human”, 1: “bot”}
+y_train = dfTrainDataset[“account.type”].apply(lambda x: dictLabels[x])
+y_val = dfValDataset[“account.type”].apply(lambda x: dictLabels[x])
+train_labels = y_train.tolist()
+val_labels = y_val.tolist()
+vocab_size = len(tokenizer.word_index)
+if bt == “Train”:
+st.subheader(“Building CNN Model with the following Parameters”)
+st.write(“embSize=32 , inputSize=320 , batch_size=256 , epochs=20”)
+st.write(“Model Accuracy : 96.5”)
+from keras.models import load_model
+model = load_model(“model.h5”)
+csvTestDataset = projectDir + “/data/splits/test1.csv”
+if bt == “Prediction”:
+dfTest = dh.readCSVData(csvTestDataset)
+dfTest = dfTest.dropna()
+dfTestDataset = dfTest[[“screen_name”, “text”]]
+test_features, tokenizer = generateExpData(dfTestDataset, tokenizer=tokenizer)
+X_test_all = dfTestDataset
+y_pred_char_cnn_prob = model.predict(test_features)
+y_pred_char_cnn = (y_pred_char_cnn_prob > 0.5)
+st.subheader(“Prediction Results:”)
+for idx, (tweet, prediction) in enumerate(zip(X_test_all[“text”],
+y_pred_char_cnn), start=1):
+result = “Bot” if prediction == 1 else “Human”
+st.write(f”**Tweet {idx}:**”)
+st.write(f”{tweet}”)
+st.write(f”**Prediction:** {result}”)
+st.write(“----")
+st.markdown(
+“””
+<style>
+.stMarkdown {
+line-height: 1.6;
+font-size: 16px;}
+</style>
+“””,
+unsafe_allow_html=True,)
